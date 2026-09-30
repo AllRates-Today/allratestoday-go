@@ -19,7 +19,7 @@ The official Go client for the [AllRatesToday](https://allratestoday.com) curren
 - ⏱️ **Context-aware** — every method takes a `context.Context` for timeouts and cancellation
 - 🔧 **Functional options** — `WithBaseURL` and `WithHTTPClient` for testing and custom transports
 - 📦 **Zero dependencies** — standard library only (`net/http` + `encoding/json`)
-- 📡 **Data source** — institutional interbank market data
+- 💹 **Mid-market rates** — no retail spread baked in
 
 ## 🔑 Get your API key
 
