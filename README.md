@@ -1,6 +1,6 @@
 # AllRatesToday Go SDK — allratestoday-go
 
-The official Go client for the [AllRatesToday](https://allratestoday.com) currency API. A small, zero-dependency wrapper over `net/http` for Go services and CLI tools that need real-time, historical or time-series exchange rates without hand-rolling request and response types.
+The official Go client for the [AllRatesToday](https://allratestoday.com) currency API. A small, zero-dependency wrapper over `net/http` for Go services and CLI tools that need real-time, historical or official central-bank exchange rates without hand-rolling request and response types.
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/AllRates-Today/allratestoday-go.svg)](https://pkg.go.dev/github.com/AllRates-Today/allratestoday-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/AllRates-Today/allratestoday-go)](https://goreportcard.com/report/github.com/AllRates-Today/allratestoday-go)
@@ -11,10 +11,11 @@ The official Go client for the [AllRatesToday](https://allratestoday.com) curren
 ## 🚀 Features
 
 - ⚡ **Real-time rates** — latest mid-market rates for any base currency
-- 🌍 **160+ currencies** — the full list is available from the API via `Symbols`
-- 📅 **Historical data** — rates for a single past date, an arbitrary date range, or a preset period (`1d`, `7d`, `30d`, `1y`)
-- 💱 **Conversion** — convert an amount between two currencies in one call
-- 🧩 **Typed responses** — every endpoint decodes into a documented struct with JSON tags
+- 🌍 **160+ currencies** — the full list is available keylessly via `Symbols`
+- 📅 **Historical data** — a past date, a date range, or a preset period (`1d`, `7d`, `30d`, `1y`) across the last 365 days
+- 💱 **Conversion** — convert an amount at the current rate or at a past date's rate
+- 🏛️ **Official rates** — the published tables of 121 central banks + 3 tax authorities, no key needed
+- 🧩 **Typed responses** — every method decodes into a documented struct with JSON tags
 - 🛡️ **Typed errors** — non-2xx responses surface as a `*allratestoday.Error` with status code and body
 - ⏱️ **Context-aware** — every method takes a `context.Context` for timeouts and cancellation
 - 🔧 **Functional options** — `WithBaseURL` and `WithHTTPClient` for testing and custom transports
@@ -23,15 +24,17 @@ The official Go client for the [AllRatesToday](https://allratestoday.com) curren
 
 ## 🔑 Get your API key
 
-Create a free key at [allratestoday.com/register](https://allratestoday.com/register). Keys look like `art_live_...`, and the SDK sends yours as a Bearer token in the `Authorization` header on every request.
+Create a free key at [allratestoday.com/register](https://allratestoday.com/register): 300 free requests, lifetime (the allowance never resets). Keys look like `art_live_...`, and the SDK sends yours as a Bearer token in the `Authorization` header. `Symbols`, `OfficialRates` and `OfficialSources` work without a key; every other method returns `allratestoday.ErrMissingAPIKey` if the client has none.
 
 ## 📦 Installation
 
 ```bash
-go get github.com/AllRates-Today/allratestoday-go
+go get github.com/AllRates-Today/allratestoday-go@v1.1.0
 ```
 
 Requires Go 1.22 or later. No third-party dependencies.
+
+> **Upgrading from v1.0.x:** v1.0.x called `/v1/...` paths that the API does not serve, so every call failed with HTTP 404. v1.1.0 keeps the same method names and response types but calls the real endpoints. `Historical` and `TimeSeries` now require at least one symbol and cover the last 365 days.
 
 ## 🏁 Quick start
 
@@ -56,7 +59,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Base:", rates.Base)
+	fmt.Println("Base:", rates.Base, "as of", rates.Date)
 	fmt.Println("Rates:", rates.Rates)
 
 	// Convert an amount
@@ -70,23 +73,25 @@ func main() {
 
 ## 📚 API reference
 
-Construct a client with `allratestoday.NewClient(apiKey, opts...)`. Every method takes a `context.Context` first and returns a typed response pointer plus an `error`.
+Construct a client with `allratestoday.NewClient(apiKey, opts...)`. Every method takes a `context.Context` first and returns a typed result plus an `error`.
 
-| Method | Endpoint | Returns |
-|--------|----------|---------|
-| `Latest(ctx, base, symbols)` | `GET /v1/latest` | `*LatestResponse` |
-| `Convert(ctx, from, to, amount)` | `GET /v1/convert` | `*ConvertResponse` |
-| `Historical(ctx, date, base, symbols)` | `GET /v1/historical` | `*HistoricalResponse` |
-| `TimeSeries(ctx, startDate, endDate, base, symbols)` | `GET /v1/timeseries` | `*TimeSeriesResponse` |
-| `Symbols(ctx)` | `GET /v1/symbols` | `*SymbolsResponse` |
-| `GetRate(ctx, from, to)` | `GET /v1/rate` | `*RateResponse` |
-| `GetHistoricalRates(ctx, source, target, period)` | `GET /v1/historical-rates` | `*HistoricalRatesResponse` |
-
-`symbols` parameters take a `[]string`; pass `nil` for every available currency.
+| Method | Endpoint | Key | Returns |
+|--------|----------|-----|---------|
+| `Latest(ctx, base, symbols)` | `GET /api/v1/rates` | yes | `*LatestResponse` |
+| `GetRates(ctx, source, targets...)` | `GET /api/v1/rates` | yes | `[]Rate` |
+| `GetRate(ctx, from, to)` | `GET /api/v1/rates` | yes | `*RateResponse` |
+| `Convert(ctx, from, to, amount)` | `GET /api/v1/rates?amount=` | yes | `*ConvertResponse` |
+| `ConvertOnDate(ctx, from, to, amount, date)` | `GET /api/historical-rates` | yes | `*ConvertResponse` |
+| `Historical(ctx, date, base, symbols)` | `GET /api/historical-rates` (one call per symbol) | yes | `*HistoricalResponse` |
+| `TimeSeries(ctx, startDate, endDate, base, symbols)` | `GET /api/historical-rates` (one call per symbol) | yes | `*TimeSeriesResponse` |
+| `GetHistoricalRates(ctx, source, target, period)` | `GET /api/historical-rates` | yes | `*HistoricalRatesResponse` |
+| `Symbols(ctx)` | `GET /api/v1/symbols` | no | `*SymbolsResponse` |
+| `OfficialRates(ctx, bank, source, target)` | `GET /api/open/central-bank/{bank}` | no | `*OfficialRatesResponse` |
+| `OfficialSources(ctx)` | `GET /api/open/central-banks` | no | `*OfficialSourcesResponse` |
 
 ### Latest(ctx, base, symbols)
 
-Most recent rates for a base currency.
+Most recent mid-market rates for a base currency. Pass `nil` for every available currency. `Date` is the observation time, e.g. `2026-10-16T11:31:01+0000`.
 
 ```go
 // All currencies
@@ -94,61 +99,58 @@ rates, err := client.Latest(ctx, "USD", nil)
 
 // Specific currencies only
 rates, err := client.Latest(ctx, "USD", []string{"EUR", "GBP", "JPY"})
-fmt.Println(rates.Date, rates.Rates)
+fmt.Println(rates.Date, rates.Rates["EUR"])
 ```
 
-### Convert(ctx, from, to, amount)
+### GetRates(ctx, source, targets...) and GetRate(ctx, from, to)
 
-Convert an amount between two currencies.
+`GetRates` returns the raw list, one `Rate` (`Rate`, `Source`, `Target`, `Time`) per target. `GetRate` is the single-pair shortcut.
+
+```go
+list, err := client.GetRates(ctx, "USD", "EUR", "GBP")
+for _, r := range list {
+	fmt.Println(r.Source, r.Target, r.Rate, r.Time)
+}
+
+rate, err := client.GetRate(ctx, "USD", "EUR")
+fmt.Println("USD/EUR:", rate.Rate, "at", rate.Date)
+```
+
+### Convert(ctx, from, to, amount) and ConvertOnDate(ctx, from, to, amount, date)
+
+Convert at the current rate, or at the rate on a past date (`YYYY-MM-DD`, last 365 days; the closest earlier point is used when the date has none).
 
 ```go
 result, err := client.Convert(ctx, "USD", "EUR", 250)
 fmt.Println(result.Rate, result.Result)
+
+past, err := client.ConvertOnDate(ctx, "USD", "EUR", 250, "2026-09-15")
+fmt.Println(past.Date, past.Rate, past.Result)
 ```
 
 ### Historical(ctx, date, base, symbols)
 
-Rates as of a specific historical date (`YYYY-MM-DD`).
+Rates on a past date (`YYYY-MM-DD`, last 365 days). `symbols` is required, and each symbol costs one request. Dates older than 30 days resolve against the weekly 1-year series, so you get the closest earlier weekly point.
 
 ```go
-rates, err := client.Historical(ctx, "2025-01-15", "USD", []string{"EUR", "GBP"})
+rates, err := client.Historical(ctx, "2026-10-01", "USD", []string{"EUR", "GBP"})
 fmt.Println(rates.Date, rates.Rates)
 ```
 
 ### TimeSeries(ctx, startDate, endDate, base, symbols)
 
-Rates across a date range, keyed by date.
+Rates across a date range, keyed by date then currency. The start date must be within the last 365 days; `symbols` is required, one request per symbol.
 
 ```go
-series, err := client.TimeSeries(ctx, "2025-01-01", "2025-01-31", "USD", []string{"EUR", "GBP"})
+series, err := client.TimeSeries(ctx, "2026-10-01", "2026-10-15", "USD", []string{"EUR", "GBP"})
 for date, dayRates := range series.Rates {
-	fmt.Println(date, dayRates)
+	fmt.Println(date, dayRates["EUR"], dayRates["GBP"])
 }
-```
-
-### Symbols(ctx)
-
-Every supported currency code with its details.
-
-```go
-symbols, err := client.Symbols(ctx)
-for code, info := range symbols.Symbols {
-	fmt.Println(code, info.Name)
-}
-```
-
-### GetRate(ctx, from, to)
-
-A single currency pair.
-
-```go
-rate, err := client.GetRate(ctx, "USD", "EUR")
-fmt.Println("USD/EUR:", rate.Rate)
 ```
 
 ### GetHistoricalRates(ctx, source, target, period)
 
-A pair's history over a preset period — `"1d"`, `"7d"`, `"30d"` or `"1y"`. Returns a slice of `HistoricalRatePoint` (`Date` / `Rate` pairs).
+A pair's history over a preset period: `"1d"`, `"7d"`, `"30d"` or `"1y"` (daily points; weekly for `"1y"`). `Rates` is a slice of `HistoricalRatePoint` (`Date`, `Rate`, `Timestamp` in Unix milliseconds), sorted oldest first.
 
 ```go
 history, err := client.GetHistoricalRates(ctx, "USD", "EUR", "30d")
@@ -156,6 +158,42 @@ for _, point := range history.Rates {
 	fmt.Println(point.Date, point.Rate)
 }
 ```
+
+### Symbols(ctx)
+
+Every supported currency, no key needed. `Symbols` maps each code to a `CurrencySymbol` (`Code`, `Name`, `Symbol`); `Currencies` keeps the API's order.
+
+```go
+symbols, err := allratestoday.NewClient("").Symbols(ctx)
+fmt.Println(symbols.Count, "currencies")
+fmt.Println(symbols.Symbols["EUR"].Name, symbols.Symbols["EUR"].Symbol) // Euro €
+```
+
+### OfficialRates(ctx, bank, source, target) and OfficialSources(ctx)
+
+The latest official table published by a central bank or tax authority (121 central banks + 3 tax authorities: HMRC, US Treasury, Swiss BAZG). These are the fixed, citable rates for invoicing, tax, customs and accounting, not live market rates. No key needed. Cite `RateDate`, not today's date.
+
+```go
+keyless := allratestoday.NewClient("")
+
+// One pair (cross-computed inside the bank's table when not published directly)
+ecb, err := keyless.OfficialRates(ctx, "ecb", "EUR", "USD")
+fmt.Printf("ECB %s: 1 EUR = %v USD (%s)\n", ecb.RateDate, ecb.Rate, ecb.RateType)
+
+// Full published table
+table, err := keyless.OfficialRates(ctx, "ecb", "", "")
+for _, row := range table.Rates {
+	fmt.Println(row.Base, row.Quote, row.Type, row.Value)
+}
+
+// Every source with its latest publication date
+sources, err := keyless.OfficialSources(ctx)
+for _, s := range sources.Sources {
+	fmt.Println(s.Code, s.Name, s.Latest, s.Stale)
+}
+```
+
+Dated and historical central-bank tables (`/api/v1/central-bank/{bank}/{date}`) need a paid plan; see [pricing](https://allratestoday.com/pricing).
 
 ### Options
 
@@ -176,7 +214,7 @@ The default HTTP client uses a 10-second timeout; use `context.WithTimeout` for 
 
 ## 🛡️ Error handling
 
-Non-2xx API responses come back as a `*allratestoday.Error` carrying the HTTP status code and response body; transport and decode failures are wrapped standard errors. Use `errors.As` to branch:
+Non-2xx API responses come back as a `*allratestoday.Error` carrying the HTTP status code and response body; a missing key is `allratestoday.ErrMissingAPIKey`; transport, validation and decode failures are wrapped standard errors. Use `errors.As` to branch:
 
 ```go
 rates, err := client.Latest(ctx, "USD", nil)
@@ -194,7 +232,8 @@ fmt.Println(rates.Rates)
 
 - **Concurrency.** A `Client` is safe for concurrent use by multiple goroutines — create one and share it.
 - **Cancellation.** Every method takes a `context.Context`, so timeouts and cancellation compose with the rest of your service.
-- **Tests.** Run the unit tests with `go test ./...`. They use `httptest` and never touch the network; set `ALLRATES_API_KEY` to also run the live smoke test.
+- **Request cost.** `Historical` and `TimeSeries` make one request per symbol, because the history endpoint takes one target per call.
+- **Tests.** Run the unit tests with `go test ./...`. They use `httptest` with response bodies captured from the live API and never touch the network; set `ALLRATES_API_KEY` to also run the live smoke test (4 keyed requests).
 
 ## 🤖 Use it from an AI agent
 
