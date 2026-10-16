@@ -15,9 +15,9 @@ import (
 const (
 	ratesBody   = `[{"rate":0.888455,"source":"USD","target":"EUR","time":"2026-10-16T12:04:01+0000"},{"rate":0.749738,"source":"USD","target":"GBP","time":"2026-10-16T12:04:01+0000"}]`
 	rateBody    = `[{"rate":0.888455,"source":"USD","target":"EUR","time":"2026-10-16T12:04:01+0000"}]`
-	convertBody = `{"from":{"currency":"USD","amount":100},"to":{"currency":"EUR","amount":88.8455},"rate":0.888455,"source":"interbank"}`
-	historyEUR  = `{"source":"USD","target":"EUR","data":[{"date":"2026-10-14","rate":0.861,"timestamp":1791936000000},{"date":"2026-10-12","rate":0.859,"timestamp":1791763200000},{"date":"2026-10-15","rate":0.862,"timestamp":1792022400000},{"date":"2026-10-16","rate":0.888455,"timestamp":1792108800000}],"source_api":"interbank","period":"7d"}`
-	historyGBP  = `{"source":"USD","target":"GBP","data":[{"date":"2026-10-12","rate":0.741,"timestamp":1791763200000},{"date":"2026-10-15","rate":0.745,"timestamp":1792022400000}],"source_api":"interbank","period":"7d"}`
+	convertBody = `{"from":{"currency":"USD","amount":100},"to":{"currency":"EUR","amount":88.8455},"rate":0.888455,"source":"mid-market"}`
+	historyEUR  = `{"source":"USD","target":"EUR","data":[{"date":"2026-10-14","rate":0.861,"timestamp":1791936000000},{"date":"2026-10-12","rate":0.859,"timestamp":1791763200000},{"date":"2026-10-15","rate":0.862,"timestamp":1792022400000},{"date":"2026-10-16","rate":0.888455,"timestamp":1792108800000}],"source_api":"mid-market","period":"7d"}`
+	historyGBP  = `{"source":"USD","target":"GBP","data":[{"date":"2026-10-12","rate":0.741,"timestamp":1791763200000},{"date":"2026-10-15","rate":0.745,"timestamp":1792022400000}],"source_api":"mid-market","period":"7d"}`
 	symbolsBody = `{"currencies":[{"code":"USD","name":"US Dollar","symbol":"$"},{"code":"EUR","name":"Euro","symbol":"€"}],"count":2}`
 	officialEUR = `{"bank":"ecb","rate_date":"2026-10-15","source":"EUR","target":"USD","rate":1.1208,"rate_type":"reference","derived":false,"method":"published","age_days":1,"stale":false,"cadence":"daily","attribution":{"source":"Official rates published by ECB, served by AllRatesToday","url":"https://allratestoday.com/central-bank-rates-api/ecb/","terms":"Free to use with visible attribution linking to allratestoday.com"},"free_key":"..."}`
 	sourcesBody = `{"sources":[{"code":"amcm","name":"Monetary Authority of Macao","latest":"2026-10-16","age_days":0,"stale":false,"cadence":"daily"}],"stale_count":3,"checked_at":"2026-10-16T12:04:27.421Z","docs":"https://allratestoday.com/central-bank-rates-api/","free_key":"..."}`
@@ -353,13 +353,21 @@ func TestLiveSmoke(t *testing.T) {
 		t.Fatalf("live Convert: %+v, %v", conv, err)
 	}
 	day := time.Now().UTC().AddDate(0, 0, -3).Format("2006-01-02")
+	// History is paid-plan only: a free or trial key gets 403
+	// historical_requires_paid_plan, which counts as a pass here.
 	hist, err := client.Historical(ctx, day, "USD", []string{"EUR"})
-	if err != nil || hist.Rates["EUR"] <= 0 {
+	if err != nil && !paidPlanRequired(err) || err == nil && hist.Rates["EUR"] <= 0 {
 		t.Fatalf("live Historical(%s): %+v, %v", day, hist, err)
 	}
+	if err != nil {
+		hist = &HistoricalResponse{}
+	}
 	series, err := client.GetHistoricalRates(ctx, "USD", "EUR", "7d")
-	if err != nil || len(series.Rates) == 0 {
+	if err != nil && !paidPlanRequired(err) || err == nil && len(series.Rates) == 0 {
 		t.Fatalf("live GetHistoricalRates: %+v, %v", series, err)
+	}
+	if err != nil {
+		series = &HistoricalRatesResponse{}
 	}
 	sym, err := NewClient("").Symbols(ctx)
 	if err != nil || sym.Count < 150 {
@@ -371,4 +379,9 @@ func TestLiveSmoke(t *testing.T) {
 	}
 	t.Logf("USD/EUR %v (%s); 100 USD = %v EUR; %s EUR %v; %d history points; %d symbols; ECB %s EUR/USD %v",
 		latest.Rates["EUR"], latest.Date, conv.Result, day, hist.Rates["EUR"], len(series.Rates), sym.Count, off.RateDate, off.Rate)
+}
+
+func paidPlanRequired(err error) bool {
+	var apiErr *Error
+	return errors.As(err, &apiErr) && apiErr.StatusCode == 403 && strings.Contains(apiErr.Message, "historical_requires_paid_plan")
 }

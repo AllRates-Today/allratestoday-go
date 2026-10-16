@@ -12,8 +12,8 @@ The official Go client for the [AllRatesToday](https://allratestoday.com) curren
 
 - ⚡ **Real-time rates** — latest mid-market rates for any base currency
 - 🌍 **160+ currencies** — the full list is available keylessly via `Symbols`
-- 📅 **Historical data** — a past date, a date range, or a preset period (`1d`, `7d`, `30d`, `1y`) across the last 365 days
-- 💱 **Conversion** — convert an amount at the current rate or at a past date's rate
+- 📅 **Historical data** — a past date, a date range, or a preset period (`1d`, `7d`, `30d`, `1y`) across the last 365 days (paid plans)
+- 💱 **Conversion** — convert an amount at the current rate, or at a past date's rate on a paid plan
 - 🏛️ **Official rates** — the published tables of 121 central banks + 3 tax authorities, no key needed
 - 🧩 **Typed responses** — every method decodes into a documented struct with JSON tags
 - 🛡️ **Typed errors** — non-2xx responses surface as a `*allratestoday.Error` with status code and body
@@ -26,10 +26,12 @@ The official Go client for the [AllRatesToday](https://allratestoday.com) curren
 
 Create a free key at [allratestoday.com/register](https://allratestoday.com/register): 300 free requests, lifetime (the allowance never resets). Keys look like `art_live_...`, and the SDK sends yours as a Bearer token in the `Authorization` header. `Symbols`, `OfficialRates` and `OfficialSources` work without a key; every other method returns `allratestoday.ErrMissingAPIKey` if the client has none.
 
+A free key (and a 100-call agent trial key) covers the latest rates and conversion. History and past-date rates (`ConvertOnDate`, `Historical`, `TimeSeries`, `GetHistoricalRates`) need a [paid plan](https://allratestoday.com/pricing); on a free or trial key they return a `*allratestoday.Error` with status 403 and code `historical_requires_paid_plan`. The keyed API sends no CORS headers, so use it from server-side code, not the browser.
+
 ## 📦 Installation
 
 ```bash
-go get github.com/AllRates-Today/allratestoday-go@v1.1.0
+go get github.com/AllRates-Today/allratestoday-go@v1.1.1
 ```
 
 Requires Go 1.22 or later. No third-party dependencies.
@@ -81,10 +83,10 @@ Construct a client with `allratestoday.NewClient(apiKey, opts...)`. Every method
 | `GetRates(ctx, source, targets...)` | `GET /api/v1/rates` | yes | `[]Rate` |
 | `GetRate(ctx, from, to)` | `GET /api/v1/rates` | yes | `*RateResponse` |
 | `Convert(ctx, from, to, amount)` | `GET /api/v1/rates?amount=` | yes | `*ConvertResponse` |
-| `ConvertOnDate(ctx, from, to, amount, date)` | `GET /api/historical-rates` | yes | `*ConvertResponse` |
-| `Historical(ctx, date, base, symbols)` | `GET /api/historical-rates` (one call per symbol) | yes | `*HistoricalResponse` |
-| `TimeSeries(ctx, startDate, endDate, base, symbols)` | `GET /api/historical-rates` (one call per symbol) | yes | `*TimeSeriesResponse` |
-| `GetHistoricalRates(ctx, source, target, period)` | `GET /api/historical-rates` | yes | `*HistoricalRatesResponse` |
+| `ConvertOnDate(ctx, from, to, amount, date)` | `GET /api/historical-rates` | paid plan | `*ConvertResponse` |
+| `Historical(ctx, date, base, symbols)` | `GET /api/historical-rates` (one call per symbol) | paid plan | `*HistoricalResponse` |
+| `TimeSeries(ctx, startDate, endDate, base, symbols)` | `GET /api/historical-rates` (one call per symbol) | paid plan | `*TimeSeriesResponse` |
+| `GetHistoricalRates(ctx, source, target, period)` | `GET /api/historical-rates` | paid plan | `*HistoricalRatesResponse` |
 | `Symbols(ctx)` | `GET /api/v1/symbols` | no | `*SymbolsResponse` |
 | `OfficialRates(ctx, bank, source, target)` | `GET /api/open/central-bank/{bank}` | no | `*OfficialRatesResponse` |
 | `OfficialSources(ctx)` | `GET /api/open/central-banks` | no | `*OfficialSourcesResponse` |
@@ -118,7 +120,7 @@ fmt.Println("USD/EUR:", rate.Rate, "at", rate.Date)
 
 ### Convert(ctx, from, to, amount) and ConvertOnDate(ctx, from, to, amount, date)
 
-Convert at the current rate, or at the rate on a past date (`YYYY-MM-DD`, last 365 days; the closest earlier point is used when the date has none).
+Convert at the current rate, or at the rate on a past date (`YYYY-MM-DD`, last 365 days; the closest earlier point is used when the date has none). `ConvertOnDate` needs a paid plan.
 
 ```go
 result, err := client.Convert(ctx, "USD", "EUR", 250)
@@ -130,7 +132,7 @@ fmt.Println(past.Date, past.Rate, past.Result)
 
 ### Historical(ctx, date, base, symbols)
 
-Rates on a past date (`YYYY-MM-DD`, last 365 days). `symbols` is required, and each symbol costs one request. Dates older than 30 days resolve against the weekly 1-year series, so you get the closest earlier weekly point.
+Paid plan. Rates on a past date (`YYYY-MM-DD`, last 365 days). `symbols` is required, and each symbol costs one request. Dates older than 30 days resolve against the weekly 1-year series, so you get the closest earlier weekly point.
 
 ```go
 rates, err := client.Historical(ctx, "2026-10-01", "USD", []string{"EUR", "GBP"})
@@ -139,7 +141,7 @@ fmt.Println(rates.Date, rates.Rates)
 
 ### TimeSeries(ctx, startDate, endDate, base, symbols)
 
-Rates across a date range, keyed by date then currency. The start date must be within the last 365 days; `symbols` is required, one request per symbol.
+Paid plan. Rates across a date range, keyed by date then currency. The start date must be within the last 365 days; `symbols` is required, one request per symbol.
 
 ```go
 series, err := client.TimeSeries(ctx, "2026-10-01", "2026-10-15", "USD", []string{"EUR", "GBP"})
@@ -150,7 +152,7 @@ for date, dayRates := range series.Rates {
 
 ### GetHistoricalRates(ctx, source, target, period)
 
-A pair's history over a preset period: `"1d"`, `"7d"`, `"30d"` or `"1y"` (daily points; weekly for `"1y"`). `Rates` is a slice of `HistoricalRatePoint` (`Date`, `Rate`, `Timestamp` in Unix milliseconds), sorted oldest first.
+Paid plan. A pair's history over a preset period: `"1d"`, `"7d"`, `"30d"` or `"1y"` (daily points; weekly for `"1y"`). `Rates` is a slice of `HistoricalRatePoint` (`Date`, `Rate`, `Timestamp` in Unix milliseconds), sorted oldest first.
 
 ```go
 history, err := client.GetHistoricalRates(ctx, "USD", "EUR", "30d")
@@ -233,7 +235,7 @@ fmt.Println(rates.Rates)
 - **Concurrency.** A `Client` is safe for concurrent use by multiple goroutines — create one and share it.
 - **Cancellation.** Every method takes a `context.Context`, so timeouts and cancellation compose with the rest of your service.
 - **Request cost.** `Historical` and `TimeSeries` make one request per symbol, because the history endpoint takes one target per call.
-- **Tests.** Run the unit tests with `go test ./...`. They use `httptest` with response bodies captured from the live API and never touch the network; set `ALLRATES_API_KEY` to also run the live smoke test (4 keyed requests).
+- **Tests.** Run the unit tests with `go test ./...`. They use `httptest` with response bodies captured from the live API and never touch the network; set `ALLRATES_API_KEY` to also run the live smoke test (4 keyed requests; on a free key the two history calls are expected to return 403 `historical_requires_paid_plan`).
 
 ## 🤖 Use it from an AI agent
 
@@ -242,7 +244,7 @@ The same rates are available to coding agents and LLM tools without a second int
 - **Claude Code plugin** (no key): `/plugin marketplace add AllRates-Today/claude-code-plugin` then `/plugin install allratestoday@allratestoday`
 - **Hosted MCP endpoint**: `https://allratestoday.com/api/mcp` — Streamable HTTP, keyless, nothing to install
 - **Local MCP servers**: `npx -y @allratestoday/mcp-server` (live mid-market rates) · `npx -y @allratestoday/central-bank-mcp` (official central-bank rates)
-- **Trial key for agents, no signup**: `POST https://allratestoday.com/api/agent/keys` (send `Content-Type: application/json`) returns a 100-call key valid 7 days, enough to try history and dated tables; both MCP servers expose it as `request_trial_key`
+- **Trial key for agents, no signup**: `POST https://allratestoday.com/api/agent/keys` (send `Content-Type: application/json`) returns a 100-call key valid 7 days for latest rates and latest central-bank tables (history and dated tables are paid-plan only); both MCP servers expose it as `request_trial_key`
 - **Daily Reference Rate** (first published 2026-10-12): one fixed USD table per business day, the 16:00 London median of minute samples, never revised — keyless at `https://allratestoday.com/api/open/reference-rate`, `get_reference_rate` in the MCP server
 - Machine-readable site guide: [llms.txt](https://allratestoday.com/llms.txt)
 

@@ -1,13 +1,17 @@
 // Package allratestoday is the official Go client for the AllRatesToday
 // exchange rate API (https://allratestoday.com). It provides real-time
 // mid-market exchange rates for 160+ currencies, conversion, up to a year
-// of daily history, and the official rates published by 121 central banks
-// and 3 tax authorities.
+// of daily history (paid plans), and the official rates published by 121
+// central banks and 3 tax authorities.
 //
 // Create a free API key at https://allratestoday.com/register (300 free
 // requests, lifetime). Keys look like "art_live_...", and the client sends
 // yours as a Bearer token in the Authorization header. Symbols,
-// OfficialRates and OfficialSources work without a key.
+// OfficialRates and OfficialSources work without a key. Historical and
+// dated rates (ConvertOnDate, Historical, TimeSeries, GetHistoricalRates)
+// need a paid plan; free and trial keys get HTTP 403 with code
+// "historical_requires_paid_plan". The keyed API sends no CORS headers,
+// so call it from server-side code only.
 //
 //	client := allratestoday.NewClient("art_live_your_api_key")
 //	rates, err := client.Latest(context.Background(), "USD", []string{"EUR", "GBP"})
@@ -449,7 +453,8 @@ func (c *Client) Convert(ctx context.Context, from, to string, amount float64) (
 
 // ConvertOnDate converts an amount at the rate on a past date (YYYY-MM-DD,
 // within the last 365 days). It uses the closest earlier point when the
-// date has none (the 1-year window is weekly).
+// date has none (the 1-year window is weekly). Requires a paid plan: free
+// and trial keys get a 403 *Error (code "historical_requires_paid_plan").
 func (c *Client) ConvertOnDate(ctx context.Context, from, to string, amount float64, date string) (*ConvertResponse, error) {
 	rate, ok, err := c.rateOn(ctx, from, to, date)
 	if err != nil {
@@ -465,6 +470,8 @@ func (c *Client) ConvertOnDate(ctx context.Context, from, to string, amount floa
 // Historical returns rates as of a past date (YYYY-MM-DD, within the last
 // 365 days) for the given symbols. symbols is required: the history
 // endpoint takes one target per call, so each symbol costs one request.
+// Requires a paid plan: free and trial keys get a 403 *Error (code
+// "historical_requires_paid_plan").
 func (c *Client) Historical(ctx context.Context, date, base string, symbols []string) (*HistoricalResponse, error) {
 	if len(symbols) == 0 {
 		return nil, errors.New("allratestoday: Historical needs symbols, e.g. []string{\"EUR\"}")
@@ -484,7 +491,8 @@ func (c *Client) Historical(ctx context.Context, date, base string, symbols []st
 
 // TimeSeries returns daily rates between two dates (YYYY-MM-DD, start
 // within the last 365 days), keyed by date then currency. symbols is
-// required; each symbol costs one request.
+// required; each symbol costs one request. Requires a paid plan: free and
+// trial keys get a 403 *Error (code "historical_requires_paid_plan").
 func (c *Client) TimeSeries(ctx context.Context, startDate, endDate, base string, symbols []string) (*TimeSeriesResponse, error) {
 	if len(symbols) == 0 {
 		return nil, errors.New("allratestoday: TimeSeries needs symbols, e.g. []string{\"EUR\"}")
@@ -515,7 +523,8 @@ func (c *Client) TimeSeries(ctx context.Context, startDate, endDate, base string
 
 // GetHistoricalRates returns a currency pair's history over a preset
 // period: "1d", "7d", "30d" or "1y" (daily points; weekly for "1y").
-// Points are sorted oldest first.
+// Points are sorted oldest first. Requires a paid plan: free and trial
+// keys get a 403 *Error (code "historical_requires_paid_plan").
 func (c *Client) GetHistoricalRates(ctx context.Context, source, target, period string) (*HistoricalRatesResponse, error) {
 	h, err := c.historyPoints(ctx, source, target, period)
 	if err != nil {
