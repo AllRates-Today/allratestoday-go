@@ -232,6 +232,7 @@ fmt.Println(rates.Rates)
 
 ## 💡 Notes
 
+- **Attribution for keyless use.** `OfficialRates`, `OfficialSources` and the open endpoints are free with a visible link where the rates are shown: `<a href="https://allratestoday.com">Exchange rates by AllRatesToday</a>`. With an API key it is appreciated, not required. Terms: <https://allratestoday.com/terms/#attribution>.
 - **Concurrency.** A `Client` is safe for concurrent use by multiple goroutines — create one and share it.
 - **Cancellation.** Every method takes a `context.Context`, so timeouts and cancellation compose with the rest of your service.
 - **Request cost.** `Historical` and `TimeSeries` make one request per symbol, because the history endpoint takes one target per call.
