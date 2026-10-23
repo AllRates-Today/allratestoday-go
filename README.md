@@ -24,7 +24,7 @@ The official Go client for the [AllRatesToday](https://allratestoday.com) curren
 
 ## 🔑 Get your API key
 
-Create a free key at [allratestoday.com/register](https://allratestoday.com/register): 300 free requests, lifetime (the allowance never resets). Keys look like `art_live_...`, and the SDK sends yours as a Bearer token in the `Authorization` header. `Symbols`, `OfficialRates` and `OfficialSources` work without a key; every other method returns `allratestoday.ErrMissingAPIKey` if the client has none.
+Create a free key at [allratestoday.com/register](https://allratestoday.com/register), no card. Keys look like `art_live_...`, and the SDK sends yours as a Bearer token in the `Authorization` header. `Symbols`, `OfficialRates` and `OfficialSources` work without a key; every other method returns `allratestoday.ErrMissingAPIKey` if the client has none.
 
 A free key (and a 100-call agent trial key) covers the latest rates and conversion. History and past-date rates (`ConvertOnDate`, `Historical`, `TimeSeries`, `GetHistoricalRates`) need a [paid plan](https://allratestoday.com/pricing); on a free or trial key they return a `*allratestoday.Error` with status 403 and code `historical_requires_paid_plan`. The keyed API sends no CORS headers, so use it from server-side code, not the browser.
 
