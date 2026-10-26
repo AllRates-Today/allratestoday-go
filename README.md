@@ -257,6 +257,7 @@ The same rates are available to coding agents and LLM tools without a second int
 - **Package docs:** [pkg.go.dev/github.com/AllRates-Today/allratestoday-go](https://pkg.go.dev/github.com/AllRates-Today/allratestoday-go)
 - **Repository:** [github.com/AllRates-Today/allratestoday-go](https://github.com/AllRates-Today/allratestoday-go)
 - **Status:** [allratestoday.com/status](https://allratestoday.com/status)
+- **Postman:** [allratestoday.com/postman](https://allratestoday.com/postman/)
 - **Support:** [allratestoday.com/contact](https://allratestoday.com/contact)
 - **Dashboard:** [allratestoday.com/profile](https://allratestoday.com/profile)
 
