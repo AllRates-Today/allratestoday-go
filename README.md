@@ -259,6 +259,7 @@ The same rates are available to coding agents and LLM tools without a second int
 - **Status:** [allratestoday.com/status](https://allratestoday.com/status)
 - **Postman:** [allratestoday.com/postman](https://allratestoday.com/postman/)
 - [ChatGPT app](https://chatgpt.com/plugins/plugin_asdk_app_6ae1e76098f48191a285ac3f5ab7a83b) — ask ChatGPT for live and official central bank rates
+- [OpenAPI reference on Bump.sh](https://bump.sh/allratestoday/doc/allratestoday-api) — also on [SwaggerHub](https://app.swaggerhub.com/apis-docs/allratestoday/allratestoday-exchange-rate-central-bank-rates-api/2.2.0)
 - **Support:** [allratestoday.com/contact](https://allratestoday.com/contact)
 - **Dashboard:** [allratestoday.com/profile](https://allratestoday.com/profile)
 
