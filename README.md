@@ -252,6 +252,7 @@ The same rates are available to coding agents and LLM tools without a second int
 ## 🔗 Links
 
 - **Website:** [allratestoday.com](https://allratestoday.com)
+- [Bank Exchange Rate API](https://allratestoday.com/bank-exchange-rate-api/) — live buy and sell rates from 1,200+ commercial banks in 120+ countries · [npm](https://www.npmjs.com/package/bank-exchange-rates) · [GitHub](https://github.com/AllRates-Today/bank-exchange-rates)
 - **API docs:** [allratestoday.com/docs](https://allratestoday.com/docs)
 - **Free API key:** [allratestoday.com/register](https://allratestoday.com/register)
 - **Package docs:** [pkg.go.dev/github.com/AllRates-Today/allratestoday-go](https://pkg.go.dev/github.com/AllRates-Today/allratestoday-go)
